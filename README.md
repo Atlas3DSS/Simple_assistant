@@ -16,10 +16,12 @@ Installation
 Set up a Virtual Environment (Optional but Recommended)
 
     Create a virtual environment:
+    
     python -m venv venv
 Activate the virtual environment:
 
     On Windows:
+    
     .\venv\Scripts\activate
 
 On macOS and Linux:
@@ -34,11 +36,13 @@ Environment Variables
 
     Create a .env file in the root directory of the project.
     Add your OpenAI API key to the .env file:
+    
     OPENAI_API_KEY=your_api_key_here
 
 Usage
 
     Run the script:
+    
     python simple_assistant.py
 
 Features
