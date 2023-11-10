@@ -6,6 +6,12 @@ import os
 import time
 from colorama import init, Fore, Style
 import subprocess
+import sounddevice as sd
+import numpy as np
+import threading
+import wavio
+from pathlib import Path
+from openai import OpenAI
 
 # Load environment variables from .env file
 load_dotenv()
@@ -39,7 +45,50 @@ print(Fore.GREEN + "Assistant and Thread initialized" + Style.RESET_ALL)
 try:
     while True:
         # User inputs the message they want to send
-        user_msg = input(Fore.YELLOW + "Enter your message to the assistant: " + Style.RESET_ALL)
+        #user_msg = input(Fore.YELLOW + "Enter your message to the assistant: " + Style.RESET_ALL)
+        # Set the audio file path
+        audio_file_path = Path(__file__).parent / "audio.wav"
+
+        # Event to signal when the recording should stop
+        stop_event = threading.Event()
+
+        # Function to record audio until Enter is pressed
+        def record_audio(stop_event):
+            fs = 44100  # Sample rate
+            # Initialize an empty list to store audio chunks
+            recording = []
+            
+            with sd.InputStream(samplerate=fs, channels=2, callback=lambda indata, frames, time, status: recording.append(indata.copy())):
+                print("Recording... Press Enter to start.")
+                input("press enter to stop")  # Wait for Enter press
+                stop_event.set()
+
+            # Concatenate all the audio chunks
+            audio_data = np.concatenate(recording, axis=0)
+            wavio.write(str(audio_file_path), audio_data, fs, sampwidth=2)
+
+            return audio_file_path
+
+        # Function to wait for Enter press in a separate thread
+        def wait_for_enter(stop_event):
+            input()
+            stop_event.set()
+
+        # Start a thread that waits for Enter to be pressed
+        threading.Thread(target=wait_for_enter, args=(stop_event,)).start()
+
+        # Start recording
+        path_to_audio = record_audio(stop_event)
+
+        # Open the audio file in binary mode
+        with open(path_to_audio, "rb") as audio_file:
+            transcript = client.audio.transcriptions.create(
+                model="whisper-1", 
+                file=audio_file
+            )
+        user_msg = transcript.text
+        # Print the transcript
+        print("Transcript:", transcript)
 
         # Append the message to the thread
         message = client.beta.threads.messages.create(
