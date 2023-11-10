@@ -5,12 +5,14 @@ import os
 import time
 from colorama import init, Fore, Style
 
+# Load environment variables from .env file
+load_dotenv()
+
 # Initialize Colorama
 init(autoreset=True)
 client = OpenAI()
 
-# Load environment variables from .env file
-load_dotenv()
+
 
 # Set your OpenAI API key
 openai.api_key = os.getenv('OPENAI_API_KEY')
