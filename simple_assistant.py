@@ -62,7 +62,7 @@ try:
         # Start a thread for recording
         threading.Thread(target=record_audio, args=(stop_event,)).start()
 
-        input(Fore.YELLOW + "Press Enter to start recording." + Style.RESET_ALL)
+        input(Fore.YELLOW + "Recording...Enter to stop." + Style.RESET_ALL)
         stop_event.set()
 
         # Open the audio file in binary mode
