@@ -1,6 +1,5 @@
 import openai
 from pathlib import Path
-from openai import OpenAI
 from dotenv import load_dotenv
 import os
 import time
@@ -10,16 +9,13 @@ import sounddevice as sd
 import numpy as np
 import threading
 import wavio
-from pathlib import Path
-from openai import OpenAI
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Initialize Colorama
 init(autoreset=True)
-client = OpenAI()
-
+client = openai.OpenAI()  # Assuming this is the correct usage of the OpenAI API
 
 # Set your OpenAI API key
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -41,54 +37,42 @@ thread = client.beta.threads.create()
 
 print(Fore.GREEN + "Assistant and Thread initialized" + Style.RESET_ALL)
 
+# Function to record audio
+def record_audio(stop_event):
+    fs = 44100  # Sample rate
+    recording = []
+    with sd.InputStream(samplerate=fs, channels=2) as stream:
+        print(Fore.YELLOW + "Recording... Press Enter to stop." + Style.RESET_ALL)
+        while not stop_event.is_set():
+            data, _ = stream.read(fs)
+            recording.append(data)
+    audio_data = np.concatenate(recording, axis=0)
+    wavio.write(str(audio_file_path), audio_data, fs, sampwidth=2)
+    return audio_file_path
+
 # Loop to continuously interact with the assistant
 try:
     while True:
-        # User inputs the message they want to send
-        #user_msg = input(Fore.YELLOW + "Enter your message to the assistant: " + Style.RESET_ALL)
         # Set the audio file path
         audio_file_path = Path(__file__).parent / "audio.wav"
 
         # Event to signal when the recording should stop
         stop_event = threading.Event()
 
-        # Function to record audio until Enter is pressed
-        def record_audio(stop_event):
-            fs = 44100  # Sample rate
-            # Initialize an empty list to store audio chunks
-            recording = []
-            
-            with sd.InputStream(samplerate=fs, channels=2, callback=lambda indata, frames, time, status: recording.append(indata.copy())):
-                print("Recording... Press Enter to start.")
-                input("press enter to stop")  # Wait for Enter press
-                stop_event.set()
+        # Start a thread for recording
+        threading.Thread(target=record_audio, args=(stop_event,)).start()
 
-            # Concatenate all the audio chunks
-            audio_data = np.concatenate(recording, axis=0)
-            wavio.write(str(audio_file_path), audio_data, fs, sampwidth=2)
-
-            return audio_file_path
-
-        # Function to wait for Enter press in a separate thread
-        def wait_for_enter(stop_event):
-            input()
-            stop_event.set()
-
-        # Start a thread that waits for Enter to be pressed
-        threading.Thread(target=wait_for_enter, args=(stop_event,)).start()
-
-        # Start recording
-        path_to_audio = record_audio(stop_event)
+        input(Fore.YELLOW + "Press Enter to start recording." + Style.RESET_ALL)
+        stop_event.set()
 
         # Open the audio file in binary mode
-        with open(path_to_audio, "rb") as audio_file:
+        with open(str(audio_file_path), "rb") as audio_file:
             transcript = client.audio.transcriptions.create(
                 model="whisper-1", 
                 file=audio_file
             )
         user_msg = transcript.text
-        # Print the transcript
-        print("Transcript:", transcript)
+        print(Fore.CYAN + "Transcript: " + user_msg + Style.RESET_ALL)
 
         # Append the message to the thread
         message = client.beta.threads.messages.create(
