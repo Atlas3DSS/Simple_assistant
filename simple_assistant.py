@@ -1,9 +1,11 @@
 import openai
+from pathlib import Path
 from openai import OpenAI
 from dotenv import load_dotenv
 import os
 import time
 from colorama import init, Fore, Style
+import subprocess
 
 # Load environment variables from .env file
 load_dotenv()
@@ -13,9 +15,8 @@ init(autoreset=True)
 client = OpenAI()
 
 
-
 # Set your OpenAI API key
-openai.api_key = os.getenv('OPENAI_API_KEY')
+openai.api_key = os.getenv("OPENAI_API_KEY")
 if not openai.api_key:
     raise ValueError("The OPENAI_API_KEY environment variable is not set.")
 
@@ -75,9 +76,9 @@ try:
         messages = client.beta.threads.messages.list(thread_id=thread.id)
 
         # Print the entire message list for sanity check
-        print(Fore.CYAN + "All messages in the thread:" + Style.RESET_ALL)
-        for msg in messages.data:
-            print(Fore.CYAN + str(msg) + Style.RESET_ALL)  # Print the whole message object
+        #print(Fore.CYAN + "All messages in the thread:" + Style.RESET_ALL)
+        #for msg in messages.data:
+            #print(Fore.CYAN + str(msg) + Style.RESET_ALL)  # Print the whole message object
 
         # Assuming the first message in the list is the latest one, find the first message from the assistant
         assistant_msg = next((m for m in messages.data if m.role == 'assistant'), None)
@@ -85,6 +86,24 @@ try:
             # Access the 'value' attribute of the 'text' attribute of the first content item, which is a MessageContentText object
             assistant_response = assistant_msg.content[0].text.value
             print(Fore.BLUE + "Assistant's response: " + assistant_response + Style.RESET_ALL)
+            
+            # Synthesize the assistant's response into speech
+            speech_file_path = Path(__file__).parent / "speech.mp3"
+            response = client.audio.speech.create(
+            model="tts-1",
+            voice="alloy",
+            input=assistant_msg.content[0].text.value
+            )
+
+            response.stream_to_file(speech_file_path)
+            
+            # Command to play the mp3 file using mpg123
+            play_command = f"mpg123 {speech_file_path}"
+
+            # Run the command
+            subprocess.run(play_command, shell=True, check=True)
+             
+
         else:
             print(Fore.RED + "No assistant messages found." + Style.RESET_ALL)
 
