@@ -10,47 +10,35 @@ Prerequisites
 
 Installation
 
-    Clone the Repository
     git clone [repository-url]](https://github.com/Atlas3DSS/Simple_assistant.git
     cd Simple_assistant
 Set up a Virtual Environment (Optional but Recommended)
-
-    Create a virtual environment:
     
     python -m venv venv
 Activate the virtual environment:
-
-    On Windows:
     
     .\venv\Scripts\activate
 
 On macOS and Linux:
 
     source venv/bin/activate
-
 Install Dependencies
 
     pip install -r requirements.txt
-
 Environment Variables
 
     Create a .env file in the root directory of the project.
     Add your OpenAI API key to the .env file:
     
     OPENAI_API_KEY=your_api_key_here
-
 Usage
-
-    Run the script:
     
     python simple_assistant.py
-
 Features
 
     Voice input recording
     Interaction with OpenAI's GPT-4 model
     Text-to-speech response
-
 Note
 
     Ensure that your OpenAI API key is kept confidential and not exposed in public repositories.
