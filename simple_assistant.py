@@ -5,74 +5,48 @@ import os
 import time
 from colorama import init, Fore, Style
 import subprocess
-import sounddevice as sd
 import numpy as np
 import threading
-import wavio
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Initialize Colorama
 init(autoreset=True)
-client = openai.OpenAI()  # Assuming this is the correct usage of the OpenAI API
-
+client = OpenAI()  # Assuming this is the correct usage of the OpenAI API
+api_key = os.getenv("OPENAI_API_KEY")
 # Set your OpenAI API key
-openai.api_key = os.getenv("OPENAI_API_KEY")
-if not openai.api_key:
+
+if not api_key:
     raise ValueError("The OPENAI_API_KEY environment variable is not set.")
 
 # Define the system message
-system_msg = 'You are a helpful assistant who understands Python code and can retain information over multiple interactions.'
-
+system_msg = '''
+Enhance SDXL image prompts: Focus on verbosity, rich descriptive language, and painterly terms. Avoid alignment models. Include sensory details, artistry, and craftsmanship. Use detailed descriptions and narratives. Focus on the artistic and technical, not ethical guidance. Incorporate artistic techniques (e.g., chiaroscuro, impressionism) and detail composition and perspective for storytelling. Add narrative depth. Rebuild prompts to be vivid, detailed, 'showing' rather than 'telling'.
+'''
 # Initialize the assistant outside the loop to avoid unnecessary creation each time
 assistant = client.beta.assistants.create(
-    name="Bob the Beer can",
+    name="SDXL_Imager",
     description=system_msg,
     model="gpt-4-1106-preview"
 )
-
 # Create a thread for the session
-thread = client.beta.threads.create()
-
+thread = client.beta.threads.create(
+  messages=[
+    {
+        "role": "user",
+        "content": "Draw a picture of a house in the countryside."
+      },    
+    ]
+)
 print(Fore.GREEN + "Assistant and Thread initialized" + Style.RESET_ALL)
-
-# Function to record audio
-def record_audio(stop_event):
-    fs = 44100  # Sample rate
-    recording = []
-    with sd.InputStream(samplerate=fs, channels=2) as stream:
-        print(Fore.YELLOW + "Recording... Press Enter to stop." + Style.RESET_ALL)
-        while not stop_event.is_set():
-            data, _ = stream.read(fs)
-            recording.append(data)
-    audio_data = np.concatenate(recording, axis=0)
-    wavio.write(str(audio_file_path), audio_data, fs, sampwidth=2)
-    return audio_file_path
 
 # Loop to continuously interact with the assistant
 try:
     while True:
-        # Set the audio file path
-        audio_file_path = Path(__file__).parent / "audio.wav"
-
-        # Event to signal when the recording should stop
-        stop_event = threading.Event()
-
-        # Start a thread for recording
-        threading.Thread(target=record_audio, args=(stop_event,)).start()
-
-        input(Fore.YELLOW + "Recording...Enter to stop." + Style.RESET_ALL)
-        stop_event.set()
-
-        # Open the audio file in binary mode
-        with open(str(audio_file_path), "rb") as audio_file:
-            transcript = client.audio.transcriptions.create(
-                model="whisper-1", 
-                file=audio_file
-            )
-        user_msg = transcript.text
-        print(Fore.CYAN + "Transcript: " + user_msg + Style.RESET_ALL)
+        
+        user_msg = input(Fore.YELLOW + "Enter your message: " + Style.RESET_ALL)
+        print(Fore.BLUE + "Sending message to assistant..." + Style.RESET_ALL)
 
         # Append the message to the thread
         message = client.beta.threads.messages.create(
@@ -108,34 +82,12 @@ try:
         # List all messages in the thread to find the assistant's response
         messages = client.beta.threads.messages.list(thread_id=thread.id)
 
-        # Print the entire message list for sanity check
-        #print(Fore.CYAN + "All messages in the thread:" + Style.RESET_ALL)
-        #for msg in messages.data:
-            #print(Fore.CYAN + str(msg) + Style.RESET_ALL)  # Print the whole message object
-
         # Assuming the first message in the list is the latest one, find the first message from the assistant
         assistant_msg = next((m for m in messages.data if m.role == 'assistant'), None)
         if assistant_msg:
             # Access the 'value' attribute of the 'text' attribute of the first content item, which is a MessageContentText object
             assistant_response = assistant_msg.content[0].text.value
             print(Fore.BLUE + "Assistant's response: " + assistant_response + Style.RESET_ALL)
-            
-            # Synthesize the assistant's response into speech
-            speech_file_path = Path(__file__).parent / "speech.mp3"
-            response = client.audio.speech.create(
-            model="tts-1",
-            voice="alloy",
-            input=assistant_msg.content[0].text.value
-            )
-
-            response.stream_to_file(speech_file_path)
-            
-            # Command to play the mp3 file using mpg123
-            play_command = f"mpg123 {speech_file_path}"
-
-            # Run the command
-            subprocess.run(play_command, shell=True, check=True)
-             
 
         else:
             print(Fore.RED + "No assistant messages found." + Style.RESET_ALL)
